@@ -1,0 +1,8 @@
+[Unit]
+Description=Process rclone nightly
+
+[Timer]
+OnCalendar=02:00
+
+[Install]
+WantedBy=timers.target
