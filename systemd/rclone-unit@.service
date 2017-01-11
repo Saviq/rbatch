@@ -3,4 +3,5 @@ Description=Transfer %I using rclone (%p)
 After=network.target
 
 [Service]
+EnvironmentFile=-%h/.rclone.env
 ExecStart=/usr/bin/env rclone-unit.sh %p "%I"

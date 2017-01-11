@@ -3,5 +3,6 @@ Description=Sync media using rclone
 After=network.target
 
 [Service]
+EnvironmentFile=-%h/.rclone.env
 ExecStart=/usr/bin/env rclone-all.sh %p
 ExecReload=/bin/kill -HUP $MAINPID
