@@ -1,5 +1,5 @@
 [Unit]
-Description=Process rclone nightly
+Description=Process rbatch-all nightly
 
 [Timer]
 OnCalendar=02:00

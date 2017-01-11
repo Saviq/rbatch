@@ -1,0 +1,185 @@
+#!/bin/bash
+
+set -e
+
+rclone=$( which rclone )
+systemctl=$( which systemctl )
+template="rbatch@.service"
+arg_re='^(all|([[:alnum:]]+)(-(check|copy|sync|move)(-(.+))?))?$'
+
+usage() {
+  cat <<EOF
+
+Usage:
+  $0 [all|[name[-operation[-item]]] ...]
+
+  rbatch is a rclone batch processor. It will recursively run ${unit}
+  instances for all subdirectories matching between source and destination.
+
+  all:       process all in RBATCH_ALL
+  name:      arbitrary alphanumeric identifier, see below for how it's used
+  operation: one of check, copy, sync, move
+  item:      subdirectory to operate on
+
+  The following environment variables are read:
+    RBATCH_ALL:     a list of arguments executed when no arguments or "all" is
+                    passed on the command line
+    name_SRC:
+    name_DEST:      rclone source and destination paths for each name
+    name_OPTIONS:
+    RBATCH_OPTIONS: passed to rclone as-is
+    name_EXCLUDE:
+    RBATCH_EXCLUDE: passed as --exclude-from, if exists under src/ and/or dest/
+
+  When only name is passed, all matching operations from RBATCH_ALL will be
+  performed.
+
+  When operation is given, that operation will be performed on all
+  subdirectories common between source and destination.
+
+  When item is also passed, only that one subdirectory will be processed.
+
+  For each directory common between source and destination,
+  rbatch@name-operation-item.service will be started, in sequence.
+EOF
+}
+
+# no arguments
+if [ "$#" -eq 0 ]; then
+  all=${RBATCH_ALL}
+  if [ -z "${all}" ]; then
+    echo "INFO: RBATCH_ALL empty - nothing to process."
+    [ ! -t 1 ] || usage
+    exit 0
+  fi
+fi
+
+# help or all
+for arg in "$@"; do
+  if [ "${arg}" == "-h" -o "${arg}" == "--help" ]; then
+    usage
+    exit 0
+  fi
+  if [ "${arg}" == "all" ]; then
+    all=${RBATCH_ALL}
+  fi
+done
+
+# no rclone
+if [ ! -x "${rclone}" ]; then
+  echo "ERROR: rclone not found on PATH:"
+  echo "  PATH=${PATH}"
+  exit 1
+fi
+
+# validate arguments
+for arg in "$@" ${all}; do
+  if [[ ! "${arg}" =~ ${arg_re} ]]; then
+    echo "ERROR: Invalid argument: ${arg}"
+    error=2
+  fi
+done
+
+if [ ${error} ]; then
+    [ ! -t 1 ] || usage
+    exit ${error}
+fi
+
+instances=()
+
+for arg in "$@" ${all}; do
+  [[ "${arg}" =~ ${arg_re} ]]
+  [ "${BASH_REMATCH}" != "all" ] || continue
+
+  name=${BASH_REMATCH[2]}
+  oper=${BASH_REMATCH[4]}
+  item=${BASH_REMATCH[6]}
+
+  src_varname="${name}_SRC"
+  dest_varname="${name}_DEST"
+  exclude_varname="${name}_EXCLUDE"
+  options_varname="${name}_OPTIONS"
+
+  src="${!src_varname}"
+  dest="${!dest_varname}"
+
+  if [ -z "${src}" -o -z "${dest}" ]; then
+    echo "ERROR: Missing source/destination paths:"
+    echo "  ${src_varname}:  ${src}"
+    echo "  ${dest_varname}: ${dest}"
+    exit 2
+  fi
+
+  if [ -n "${item}" ]; then
+    # run rclone for item
+
+    src="${src}/${item}"
+    dest="${dest}/${item}"
+
+    # read in global and per-name options
+    read -a opts <<< "${RBATCH_OPTIONS} ${!options_varname}"
+
+    # determine the exclude file name and add it to excludes itself
+    exclude=${!exclude_varname-${RBATCH_EXCLUDE-".rclone.exclude"}}
+    opts+=("--exclude=${exclude}")
+
+    if ( ${rclone} lsd "${src}" && ${rclone} lsd "${dest}" ) > /dev/null 2>&1; then
+      # if the two locations exist
+
+      opts+=("${oper}")
+      opts+=("${src}")
+      opts+=("${dest}")
+
+      # run rclone with the combined options and pipe exclude files in
+      ${rclone} "${opts[@]}" \
+        --exclude-from=<( ${rclone} cat "${src}/${exclude}" 2> /dev/null ) \
+        --exclude-from=<( ${rclone} cat "${dest}/${exclude}" 2> /dev/null ) || continue
+    else
+      echo "INFO: ${item} not present on both sides, ignoring."
+    fi
+
+  elif [ -n "${oper}" ]; then
+    # start rbatch for each item
+
+    # create a list of common items
+    items=$( comm -12 \
+      <( ${rclone} lsd "${src}" | awk '{ print substr($0, index($0, $5)) }' | sort ) \
+      <( ${rclone} lsd "${dest}" | awk '{ print substr($0, index($0, $5)) }' | sort ) )
+
+    IFS=$'\n'
+
+    for item in ${items}; do
+      instances+=( $( systemd-escape --template=${template} "${arg}-${item}" ) )
+    done
+
+    unset IFS
+
+  else
+    # find matching items in $RBATCH_ALL
+
+    matches=()
+    for match in ${RBATCH_ALL}; do
+      [[ "${match}" != "${name}-"* ]] || \
+        matches+=( $( systemd-escape --template=${template} "${match}" ) )
+    done
+
+    if [ "${#matches[@]}" -gt 0 ]; then
+      instances=( "${instances[@]}" "${matches[@]}" )
+    else
+      echo "INFO: No matches for \"${name}\":"
+      echo "  RBATCH_ALL=${RBATCH_ALL}"
+    fi
+  fi
+done
+
+IFS=$'\n'
+
+# run all unique instances
+for instance in $( printf '%s\n' "${instances[@]}" | sort -u ); do
+  echo "INFO: running ${instance}"
+  ${systemctl} --user start ${instance}
+
+  while [ "$( ${systemctl} --user is-active ${instance} )" == "active" ]; do
+    sleep 30
+  done
+done

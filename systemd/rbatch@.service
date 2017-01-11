@@ -1,0 +1,7 @@
+[Unit]
+Description=Batch process using rbatch
+After=network.target
+
+[Service]
+EnvironmentFile=-%h/.rbatch.env
+ExecStart=/usr/bin/env rbatch "%I"
