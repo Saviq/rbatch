@@ -44,18 +44,17 @@ item=$( echo ${src} | awk -F/ '{ print $(NF) }' )
 
 echo "========== ${item} =========="
 
-if [ ! -d "${src}" -a ! -d "${dest}" ]; then
-  printf "INFO: ${item} Missing.\n\n"
-  exit 0
+if ( rclone lsd "${src}" && rclone lsd "${dest}" ) 2>&1 > /dev/null; then
+  [ -f "${src}/${exclude}" ] && \
+    opts+=("--exclude-from=${src}/${exclude}")
+  [ -f "${dest}/${exclude}" ] && \
+    opts+=("--exclude-from=${dest}/${exclude}")
+
+  opts+=("$op")
+  opts+=("$src")
+  opts+=("$dest")
+
+  rclone "${opts[@]}"
+else
+  echo "INFO: ${item} not present on both sides, skipping."
 fi
-
-[ -f "${src}/${exclude}" ] && \
-  opts+=("--exclude-from=${src}/${exclude}")
-[ -f "${dest}/${exclude}" ] && \
-  opts+=("--exclude-from=${dest}/${exclude}")
-
-opts+=("$op")
-opts+=("$src")
-opts+=("$dest")
-
-rclone "${opts[@]}"
