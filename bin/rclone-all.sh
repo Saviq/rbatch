@@ -35,12 +35,24 @@ else
   exit 1
 fi
 
+if [ -z "${RCLONE_NAMES}" ]; then
+  echo "INFO: RCLONE_NAMES empty - nothing to process."
+  exit 0
+fi
+
 for name in ${RCLONE_NAMES}; do
   src_varname="${name}_SRC"
   dest_varname="${name}_DEST"
 
   src="${!src_varname}"
   dest="${!src_varname}"
+
+  if [ -z "${src}" -o -z "${dest}" ]; then
+    echo "ERROR: Missing source/destination paths:"
+    echo "  ${src_varname}:  ${src}"
+    echo "  ${dest_varname}: ${dest}"
+    exit 3
+  fi
 
   items=$( comm -12 \
     <(rclone lsd "${src}" | awk '{ print substr($0, index($0, $5)) }' | sort ) \

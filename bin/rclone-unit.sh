@@ -38,6 +38,13 @@ dest_varname="${name}_DEST"
 exclude_varname="${name}_EXCLUDE"
 options_varname="${name}_OPTIONS"
 
+if [ -z "${!src_varname}" -o -z "${!dest_varname}" ]; then
+  echo "ERROR: Missing source/destination paths:"
+  echo "  ${src_varname}:  ${!src_varname}"
+  echo "  ${dest_varname}: ${!dest_varname}"
+  exit 3
+fi
+
 exclude=${!exclude_varname-${RCLONE_EXCLUDE-".rclone.exclude"}}
 
 item="$2"
