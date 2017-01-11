@@ -6,9 +6,9 @@ usage() {
   echo "Usage:"
   echo "  $0 command src dest"
   echo
-  echo "  command: (sync|copy|move)-name, determining rclone operation"
+  echo "  command: oper-name, where oper is one of copy, sync, move"
   echo
-  echo "  The following environment variables are parsed, in order of precedence:"
+  echo "  The following environment variables are read, in order of precedence:"
   echo "    name_EXCLUDE:"
   echo "    RCLONE_EXCLUDE: passed as --exclude-from, if exists under src/ and/or dest/"
   echo "    name_OPTIONS:"
@@ -56,5 +56,5 @@ if ( rclone lsd "${src}" && rclone lsd "${dest}" ) 2>&1 > /dev/null; then
 
   rclone "${opts[@]}"
 else
-  echo "INFO: ${item} not present on both sides, skipping."
+  echo "INFO: ${item} not present on both sides, ignoring."
 fi
