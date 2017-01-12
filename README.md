@@ -24,9 +24,12 @@ Now you can start rbatch with any of:
     $ systemctl --user start rbatch@all.service
     $ systemctl --user start rbatch@one.service
     $ systemctl --user start rbatch@one-check.service # doesn't have ot be in RBATCH_ALL
-    $ systemctl --user start ( systemd-escape --template=rbatch@.service "one-move-Some folder"
 
 It will find matching subdirectories between source and destination and start other rbatch@ instances that perform a check, sync, copy or move operation on those.
+
+    $ systemctl --user start ( systemd-escape --template=rbatch@.service "one-move-Some folder"
+
+This will move from "remote:path/Some folder" to "/local/path/Some folder" regardless if the latter exists.
 
 See help for more information:
 

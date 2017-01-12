@@ -123,20 +123,14 @@ for arg in "$@" "${all[@]}"; do
     exclude=${!exclude_varname-${RBATCH_EXCLUDE-".rclone.exclude"}}
     opts+=("--exclude=${exclude}")
 
-    if ( ${rclone} lsd "${src}" && ${rclone} lsd "${dest}" ) > /dev/null 2>&1; then
-      # if the two locations exist
+    opts+=("${oper}")
+    opts+=("${src}")
+    opts+=("${dest}")
 
-      opts+=("${oper}")
-      opts+=("${src}")
-      opts+=("${dest}")
-
-      # run rclone with the combined options and pipe exclude files in
-      ${rclone} "${opts[@]}" \
-        --exclude-from=<( ${rclone} cat "${src}/${exclude}" 2> /dev/null ) \
-        --exclude-from=<( ${rclone} cat "${dest}/${exclude}" 2> /dev/null ) || continue
-    else
-      echo "INFO: ${item} not present on both sides, ignoring."
-    fi
+    # run rclone with the combined options and pipe exclude files in
+    ${rclone} "${opts[@]}" \
+      --exclude-from=<( ${rclone} cat "${src}/${exclude}" 2> /dev/null ) \
+      --exclude-from=<( ${rclone} cat "${dest}/${exclude}" 2> /dev/null ) || continue
 
   elif [ -n "${oper}" ]; then
     # start rbatch for each item
