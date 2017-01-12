@@ -11,7 +11,7 @@ Assuming you have rclone configured, getting rbatch going is as simple as:
 Example:
 
     RBATCH_OPTIONS=--bwlimit=1M
-    RBATCH_ALL=one-sync
+    RBATCH_ALL=one-sync one-copy-Sub\\ Path
     one_SRC=remote:path
     one_DEST=/local/path
 

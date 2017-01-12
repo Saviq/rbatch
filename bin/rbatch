@@ -46,12 +46,12 @@ EOF
 
 # no arguments
 if [ "$#" -eq 0 ]; then
-  all=${RBATCH_ALL}
   if [ -z "${all}" ]; then
     echo "INFO: RBATCH_ALL empty - nothing to process."
     [ ! -t 1 ] || usage
     exit 0
   fi
+  read -a all <<< "${RBATCH_ALL}"
 fi
 
 # help or all
@@ -61,7 +61,7 @@ for arg in "$@"; do
     exit 0
   fi
   if [ "${arg}" == "all" ]; then
-    all=${RBATCH_ALL}
+    read -a all <<< "${RBATCH_ALL}"
   fi
 done
 
@@ -73,7 +73,7 @@ if [ ! -x "${rclone}" ]; then
 fi
 
 # validate arguments
-for arg in "$@" ${all}; do
+for arg in "$@" "${all[@]}"; do
   if [[ ! "${arg}" =~ ${arg_re} ]]; then
     echo "ERROR: Invalid argument: ${arg}"
     error=2
@@ -87,7 +87,7 @@ fi
 
 instances=()
 
-for arg in "$@" ${all}; do
+for arg in "$@" "${all[@]}"; do
   [[ "${arg}" =~ ${arg_re} ]]
   [ "${BASH_REMATCH}" != "all" ] || continue
 
