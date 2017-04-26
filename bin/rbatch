@@ -13,16 +13,16 @@ usage() {
 Usage:
   $0 [all|[name[-[full]operation[-item]]] ...]
 
-  rbatch is a rclone batch processor. It will recursively run ${unit}
-  instances for all subdirectories matching between source and destination,
+  rbatch is a rclone batch processor. It will recursively run ${template}
+  instances for all subfolders matching between source and destination,
   unless the operation is prefixed with "full", in which case the whole
-  source and destination directories will be operated on.
+  source and destination folders will be operated on.
 
   all:       process all in RBATCH_ALL
   name:      arbitrary alphanumeric identifier, see below for how it's used
-  full:      process the whole directory, not subdirectories
+  full:      process the whole folder, not subfolders
   operation: one of check, copy, sync, move
-  item:      subdirectory to operate on
+  item:      subfolder to operate on
 
   The following environment variables are read:
     RBATCH_ALL:     a list of arguments executed when no arguments or "all" is
@@ -37,11 +37,11 @@ Usage:
   When only name is passed, all matching operations from RBATCH_ALL will be
   performed.
 
-  When operation is given, that operation will be performed.
+  When operation is given, that rclone operation will be performed.
 
-  When item is also passed, only that one subdirectory will be processed.
+  When item is also passed, only that one subfolder will be processed.
 
-  For each directory common between source and destination,
+  For each folder common between source and destination,
   rbatch@name-operation-item.service will be started, in sequence.
 EOF
 }
