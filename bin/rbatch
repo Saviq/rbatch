@@ -5,13 +5,13 @@ set -e
 rclone=$( which rclone )
 systemctl=$( which systemctl )
 template="rbatch@.service"
-arg_re='^(all|([[:alnum:]]+)(-(full)?(check|copy|sync|move)(-(.+))?))?$'
+arg_re='^(all|([[:alnum:]]+)(:(full)?(check|copy|sync|move)(:(.+))?))?$'
 
 usage() {
   cat <<EOF
 
 Usage:
-  $0 [all|[name[-[full]operation[-item]]] ...]
+  $0 [all|[name[:[full]operation[:item]]] ...]
 
   rbatch is a rclone batch processor. It will recursively run ${template}
   instances for all subfolders matching between source and destination,
@@ -152,7 +152,7 @@ for arg in "$@" "${all[@]}"; do
     IFS=$'\n'
 
     for item in ${items}; do
-      instances+=( $( systemd-escape --template=${template} "${arg}-${item}" ) )
+      instances+=( $( systemd-escape --template=${template} "${arg}:${item}" ) )
     done
 
     unset IFS
