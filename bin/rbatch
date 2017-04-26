@@ -5,19 +5,22 @@ set -e
 rclone=$( which rclone )
 systemctl=$( which systemctl )
 template="rbatch@.service"
-arg_re='^(all|([[:alnum:]]+)(-(check|copy|sync|move)(-(.+))?))?$'
+arg_re='^(all|([[:alnum:]]+)(-(full)?(check|copy|sync|move)(-(.+))?))?$'
 
 usage() {
   cat <<EOF
 
 Usage:
-  $0 [all|[name[-operation[-item]]] ...]
+  $0 [all|[name[-[full]operation[-item]]] ...]
 
   rbatch is a rclone batch processor. It will recursively run ${unit}
-  instances for all subdirectories matching between source and destination.
+  instances for all subdirectories matching between source and destination,
+  unless the operation is prefixed with "full", in which case the whole
+  source and destination directories will be operated on.
 
   all:       process all in RBATCH_ALL
   name:      arbitrary alphanumeric identifier, see below for how it's used
+  full:      process the whole directory, not subdirectories
   operation: one of check, copy, sync, move
   item:      subdirectory to operate on
 
@@ -34,8 +37,7 @@ Usage:
   When only name is passed, all matching operations from RBATCH_ALL will be
   performed.
 
-  When operation is given, that operation will be performed on all
-  subdirectories common between source and destination.
+  When operation is given, that operation will be performed.
 
   When item is also passed, only that one subdirectory will be processed.
 
@@ -78,6 +80,10 @@ for arg in "$@" "${all[@]}"; do
     echo "ERROR: Invalid argument: ${arg}"
     error=2
   fi
+  if [ -n "${BASH_REMATCH[4]}" -a -n "${BASH_REMATCH[7]}" ]; then
+    echo "ERROR: Item not supported when operation is \"full*\": ${arg}"
+    error=3
+  fi
 done
 
 if [ ${error} ]; then
@@ -92,8 +98,9 @@ for arg in "$@" "${all[@]}"; do
   [ "${BASH_REMATCH}" != "all" ] || continue
 
   name=${BASH_REMATCH[2]}
-  oper=${BASH_REMATCH[4]}
-  item=${BASH_REMATCH[6]}
+  full=${BASH_REMATCH[4]}
+  oper=${BASH_REMATCH[5]}
+  item=${BASH_REMATCH[7]}
 
   src_varname="${name}_SRC"
   dest_varname="${name}_DEST"
@@ -110,11 +117,13 @@ for arg in "$@" "${all[@]}"; do
     exit 2
   fi
 
-  if [ -n "${item}" ]; then
+  if [ -n "${full}" -o -n "${item}" ]; then
     # run rclone for item
 
-    src="${src}/${item}"
-    dest="${dest}/${item}"
+    if [ -n "{$item}" ]; then
+        src="${src}/${item}"
+        dest="${dest}/${item}"
+    fi
 
     # read in global and per-name options
     read -a opts <<< "${RBATCH_OPTIONS} ${!options_varname}"
