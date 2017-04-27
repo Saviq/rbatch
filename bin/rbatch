@@ -5,7 +5,7 @@ set -e
 rclone=$( which rclone )
 systemctl=$( which systemctl )
 template="rbatch@.service"
-arg_re='^(all|([[:alnum:]]+)(:(full)?(check|copy|sync|move)(:(.+))?))?$'
+job_re='^(all|([[:alnum:]]+)(:(full)?(check|copy|sync|move)(:(.+))?))?$'
 
 usage() {
   cat <<EOF
@@ -25,7 +25,7 @@ Usage:
   item:      subfolder to operate on
 
   The following environment variables are read:
-    RBATCH_ALL:     a list of arguments executed when no arguments or "all" is
+    RBATCH_ALL:     a list of jobs executed when no arguments or "all" is
                     passed on the command line
     name_SRC:
     name_DEST:      rclone source and destination paths for each name
@@ -46,6 +46,9 @@ Usage:
 EOF
 }
 
+jobs=()
+read -a all <<< "${RBATCH_ALL}"
+
 # no arguments
 if [ "$#" -eq 0 ]; then
   if [ -z "${all}" ]; then
@@ -53,18 +56,25 @@ if [ "$#" -eq 0 ]; then
     [ ! -t 1 ] || usage
     exit 0
   fi
-  read -a all <<< "${RBATCH_ALL}"
+  jobs+=("${all[@]}")
 fi
 
 # help or all
-for arg in "$@"; do
-  if [ "${arg}" == "-h" -o "${arg}" == "--help" ]; then
-    usage
-    exit 0
-  fi
-  if [ "${arg}" == "all" ]; then
-    read -a all <<< "${RBATCH_ALL}"
-  fi
+for job in "$@"; do
+  case "${job}" in
+    -h)
+      ;&
+    --help)
+      usage
+      exit 0
+      ;;
+    all)
+      jobs+=("${all[@]}")
+      ;;
+    *)
+      jobs+=("${job}")
+      ;;
+  esac
 done
 
 # no rclone
@@ -75,13 +85,13 @@ if [ ! -x "${rclone}" ]; then
 fi
 
 # validate arguments
-for arg in "$@" "${all[@]}"; do
-  if [[ ! "${arg}" =~ ${arg_re} ]]; then
-    echo "ERROR: Invalid argument: ${arg}"
+for job in "${jobs[@]}"; do
+  if [[ ! "${job}" =~ ${job_re} ]]; then
+    echo "ERROR: Invalid argument: ${job}"
     error=2
   fi
   if [ -n "${BASH_REMATCH[4]}" -a -n "${BASH_REMATCH[7]}" ]; then
-    echo "ERROR: Item not supported when operation is \"full*\": ${arg}"
+    echo "ERROR: Item not supported when operation is \"full*\": ${job}"
     error=3
   fi
 done
@@ -93,8 +103,8 @@ fi
 
 instances=()
 
-for arg in "$@" "${all[@]}"; do
-  [[ "${arg}" =~ ${arg_re} ]]
+for job in "${jobs[@]}"; do
+  [[ "${job}" =~ ${job_re} ]]
   [ "${BASH_REMATCH}" != "all" ] || continue
 
   name=${BASH_REMATCH[2]}
@@ -117,7 +127,12 @@ for arg in "$@" "${all[@]}"; do
     exit 2
   fi
 
-  if [ -n "${full}" -o -n "${item}" ]; then
+  if [ "${#jobs[@]}" -gt 1 ]; then
+    # always hand off to job control if there's more than one job
+
+    instances+=( $( systemd-escape --template=${template} "${job}" ) )
+
+  elif [ -n "${full}" -o -n "${item}" ]; then
     # run rclone for item
 
     if [ -n "{$item}" ]; then
@@ -152,7 +167,7 @@ for arg in "$@" "${all[@]}"; do
     IFS=$'\n'
 
     for item in ${items}; do
-      instances+=( $( systemd-escape --template=${template} "${arg}:${item}" ) )
+      instances+=( $( systemd-escape --template=${template} "${job}:${item}" ) )
     done
 
     unset IFS
