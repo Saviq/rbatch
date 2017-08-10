@@ -5,7 +5,7 @@ set -e
 rclone=$( which rclone )
 systemctl=$( which systemctl )
 template="rbatch@.service"
-job_re='^(all|([[:alnum:]]+)(:(full)?(check|copy|sync|move)(:(.+))?))?$'
+job_re='^(all|([[:alnum:]]+)(:(full)?(check|cryptcheck|copy|sync|move)(:(.+))?))?$'
 
 usage() {
   cat <<EOF
@@ -21,7 +21,7 @@ Usage:
   all:       process all in RBATCH_ALL
   name:      arbitrary alphanumeric identifier, see below for how it's used
   full:      process the whole folder, not subfolders
-  operation: one of check, copy, sync, move
+  operation: one of check, cryptcheck, copy, sync, move
   item:      subfolder to operate on
 
   The following environment variables are read:
