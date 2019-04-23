@@ -5,7 +5,7 @@ set -e
 rclone=$( which rclone )
 systemctl=$( which systemctl )
 template="rbatch@.service"
-job_re='^(all|([[:alnum:]]+)(:(full)?(check|cryptcheck|copy|sync|move)(:(.+))?))?$'
+job_re='^(all|([[:alnum:]]+)(:(full)?(check|cryptcheck|copy|sync|move)(:(.+))?)?)?$'
 
 usage() {
   cat <<EOF
@@ -177,7 +177,7 @@ for job in "${jobs[@]}"; do
 
     matches=()
     for match in ${RBATCH_ALL}; do
-      [[ "${match}" != "${name}-"* ]] || \
+      [[ "${match}" != "${name}:"* ]] || \
         matches+=( $( systemd-escape --template=${template} "${match}" ) )
     done
 
